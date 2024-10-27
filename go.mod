@@ -1,6 +1,6 @@
 module example.com/kaisheng
 
-go 1.23.2
+go 1.22
 
 require (
 	cloud.google.com/go/vision v1.2.0
