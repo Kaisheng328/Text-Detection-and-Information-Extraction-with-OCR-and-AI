@@ -1,4 +1,4 @@
-module kaisheng
+module example.com/kaisheng
 
 go 1.23.2
 
