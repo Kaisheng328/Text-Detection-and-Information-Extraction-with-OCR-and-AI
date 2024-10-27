@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	vision "cloud.google.com/go/vision/apiv1"
-	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
@@ -361,8 +360,6 @@ func Router(w http.ResponseWriter, r *http.Request) {
 }
 func init() {
 	functions.HTTP("Router", Router)
-}
-func main() {
 	env := os.Getenv("ENVIRONMENT")
 	var envFile string
 	if env == "cloud" {
@@ -373,27 +370,49 @@ func main() {
 
 	err := godotenv.Load(envFile)
 	if err != nil {
-		log.Fatalf("Error loading .env file")
+		log.Fatalf("Error loading .env file: %v", err)
 	}
+
+	// Initialize the database connection
 	err = initSQL()
 	if err != nil {
 		log.Fatalf("Failed to connect to MySQL: %v", err)
 	}
 	defer db.Close()
 
-	port := os.Getenv("LOCAL_SERVER_PORT")
-	if port == "" {
-		port = "5000"
-	}
-
-	if env == "cloud" {
-		// For Cloud Functions, use funcframework to start the server
-		if err := funcframework.Start(port); err != nil {
-			log.Fatalf("funcframework.Start: %v\n", err)
-		}
-	} else {
-		// For local development, use http.ListenAndServe
-		http.HandleFunc("/upload", PostImage)
-		log.Fatal(http.ListenAndServe(":"+port, nil))
-	}
 }
+
+// func main() {
+// 	env := os.Getenv("ENVIRONMENT")
+// 	var envFile string
+// 	if env == "cloud" {
+// 		envFile = "Capp.env"
+// 	} else {
+// 		envFile = "app.env"
+// 	}
+
+// 	err := godotenv.Load(envFile)
+// 	if err != nil {
+// 		log.Fatalf("Error loading .env file")
+// 	}
+// 	err = initSQL()
+// 	if err != nil {
+// 		log.Fatalf("Failed to connect to MySQL: %v", err)
+// 	}
+// 	defer db.Close()
+
+// port := os.Getenv("LOCAL_SERVER_PORT")
+// if port == "" {
+// 	port = "5000"
+// }
+
+// if env == "cloud" {
+// 	// For Cloud Functions, use funcframework to start the server
+// 	if err := funcframework.Start(port); err != nil {
+// 		log.Fatalf("funcframework.Start: %v\n", err)
+// 	}
+// } else {
+// 	// For local development, use http.ListenAndServe
+// 	http.HandleFunc("/upload", PostImage)
+// 	log.Fatal(http.ListenAndServe(":"+port, nil))
+// }
