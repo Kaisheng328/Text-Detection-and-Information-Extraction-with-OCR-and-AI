@@ -42,7 +42,6 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("Failed to connect to MySQL: %v", err)
 	}
-	defer db.Close()
 	// Parse the JSON request body
 	var requestBody RequestBody
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
@@ -85,6 +84,7 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(responseBody); err != nil {
 		http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
 	}
+	defer db.Close()
 	fmt.Println(aiResponse)
 }
 
