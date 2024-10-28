@@ -15,6 +15,7 @@ import (
 
 	vision "cloud.google.com/go/vision/apiv1"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	_ "github.com/go-sql-driver/mysql"
 	"google.golang.org/api/option"
 )
 
