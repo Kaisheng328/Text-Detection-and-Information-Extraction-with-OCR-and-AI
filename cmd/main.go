@@ -335,7 +335,7 @@ func main() {
 	env := os.Getenv("ENVIRONMENT")
 	port := os.Getenv("LOCAL_SERVER_PORT")
 	if port == "" {
-		port = "5000"
+		port = "8080"
 	}
 
 	if env == "cloud" {

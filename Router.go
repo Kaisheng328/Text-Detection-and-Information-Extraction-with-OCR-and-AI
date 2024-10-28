@@ -308,6 +308,7 @@ func InitSQL() error {
 	host := os.Getenv("MY_SQL_HOST")
 	dbName := os.Getenv("MY_SQL_DB")
 	tcp := os.Getenv("MY_SQL_TCP")
+	log.Printf("user:%s , password:%s, host:%s, dbname:%s , tcp:%s", user, password, host, dbName, tcp)
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s", user, password, tcp, host, dbName)
 	var err error
 	db, err = sql.Open("mysql", dsn)
