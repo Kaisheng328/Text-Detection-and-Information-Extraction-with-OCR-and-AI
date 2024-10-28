@@ -1,4 +1,4 @@
-package main
+package router
 
 import (
 	"bytes"
@@ -15,8 +15,6 @@ import (
 
 	vision "cloud.google.com/go/vision/apiv1"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )
 
@@ -25,8 +23,6 @@ const default_provider_name = "chatgpt"
 const default_model_name = "gpt-4o-mini"
 const default_prompt_message = "This is Data Retrieve from GoogleVisionOCR. PLs help me to find {type: nric | passport | driving-license | Others , number:,name:,country: {code: ,name: }, return result as **JSON (JavaScript Object Notation)** and must in stringify Json format make it machine readable message. dont use ```json. The number should not mixed with alpha.No explaination or further questions needed !!!"
 
-var db *sql.DB
-
 type RequestBody struct {
 	Base64Image string `json:"base64image"`
 }
@@ -34,9 +30,87 @@ type ResponseBody struct {
 	AIResponse string `json:"aiResponse"`
 }
 
+var db *sql.DB
+
+func Router(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case "/upload":
+		PostImage(w, r)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func PostImage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Parse the JSON request body
+	var requestBody RequestBody
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if strings.HasPrefix(requestBody.Base64Image, "data:image/") {
+		commaIndex := strings.Index(requestBody.Base64Image, ",")
+		if commaIndex != -1 {
+			requestBody.Base64Image = requestBody.Base64Image[commaIndex+1:]
+		}
+	}
+	// Decode the Base64 image
+	imageData, err := base64.StdEncoding.DecodeString(requestBody.Base64Image)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid base64 image"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Perform OCR to extract text
+	googleCred := option.WithCredentialsFile(os.Getenv("GOOGLE_CRED"))
+	ocrText, err := GetOCRText(imageData, googleCred)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to perform OCR"}`, http.StatusInternalServerError)
+		return
+	}
+	formatedText := strings.ReplaceAll(ocrText, "\n", " ")
+	fmt.Println("OCR Text in Single Line:", formatedText)
+	// Process the extracted text with AI
+	aiResponse, err := ProcessAI(formatedText)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to process AI"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the AI response
+	responseBody := ResponseBody{AIResponse: aiResponse}
+	if err := json.NewEncoder(w).Encode(responseBody); err != nil {
+		http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
+	}
+	fmt.Println(aiResponse)
+}
+
+func init() {
+	functions.HTTP("Router", Router)
+	// env := os.Getenv("ENVIRONMENT")
+	// var envFile string
+	// if env == "cloud" {
+	// 	envFile = "Capp.env"
+	// } else {
+	// 	envFile = "app.env"
+	// }
+
+	// err := godotenv.Load(envFile)
+	// if err != nil {
+	// 	log.Fatalf("Error loading .env file")
+	// }
+	err := InitSQL()
+	if err != nil {
+		log.Fatalf("Failed to connect to MySQL: %v", err)
+	}
+	defer db.Close()
+
+}
 func ProcessChatgptAI(formatedText string, modelname string) (string, error) {
 	ChatgptKey := os.Getenv("CHATGPT_KEY")
-	promptMessage, err := getPromptMessage()
+	promptMessage, err := GetPromptMessage()
 	if err != nil {
 		return " ", fmt.Errorf("error retrieving prompt message: %v", err)
 
@@ -123,7 +197,7 @@ func ProcessGemmaAI(formatedText string, modelname string) (string, error) {
 	endpoint := os.Getenv("OLLAMA_ENDPOINT")
 	OllamaKey := os.Getenv("OLLAMA_KEY")
 	ollamaURL := fmt.Sprintf("http://%s/%s/%s", host, api, endpoint)
-	promptMessage, err := getPromptMessage()
+	promptMessage, err := GetPromptMessage()
 	if err != nil {
 		return " ", fmt.Errorf("error retrieving prompt message: %v", err)
 	}
@@ -198,7 +272,7 @@ func ProcessGemmaAI(formatedText string, modelname string) (string, error) {
 	return fullResponse, nil
 }
 
-func getOCRText(imageData []byte, googleCred option.ClientOption) (string, error) {
+func GetOCRText(imageData []byte, googleCred option.ClientOption) (string, error) {
 	ctx := context.Background()
 	// Create a new Vision API client
 	client, err := vision.NewImageAnnotatorClient(ctx, googleCred)
@@ -228,7 +302,7 @@ func getOCRText(imageData []byte, googleCred option.ClientOption) (string, error
 	// Return the detected text
 	return annotations[0].Description, nil
 }
-func initSQL() error {
+func InitSQL() error {
 	user := os.Getenv("MY_SQL_USER")
 	password := os.Getenv("MY_SQL_PASSWORD")
 	host := os.Getenv("MY_SQL_HOST")
@@ -251,7 +325,7 @@ func initSQL() error {
 	return nil
 }
 
-func getAIConfig() (string, string, error) {
+func GetAIConfig() (string, string, error) {
 
 	// Query the AI configuration
 	var providerName, modelName string
@@ -264,7 +338,7 @@ func getAIConfig() (string, string, error) {
 	return providerName, modelName, nil
 }
 
-func getPromptMessage() (string, error) {
+func GetPromptMessage() (string, error) {
 
 	// Query the AI configuration
 	var promptMessage string
@@ -277,7 +351,7 @@ func getPromptMessage() (string, error) {
 	return promptMessage, nil
 }
 func ProcessAI(formatedText string) (string, error) {
-	providerName, modelName, err := getAIConfig() // Fetch provider and model from MySQL
+	providerName, modelName, err := GetAIConfig() // Fetch provider and model from MySQL
 	if err != nil {
 		log.Printf("Error retrieving AI configuration: %v\n", err)
 		return "", fmt.Errorf("error retrieving AI configuration: %v", err)
@@ -305,114 +379,3 @@ func ProcessAI(formatedText string) (string, error) {
 	}
 	return aiResponse, nil
 }
-func PostImage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse the JSON request body
-	var requestBody RequestBody
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
-		return
-	}
-	if strings.HasPrefix(requestBody.Base64Image, "data:image/") {
-		commaIndex := strings.Index(requestBody.Base64Image, ",")
-		if commaIndex != -1 {
-			requestBody.Base64Image = requestBody.Base64Image[commaIndex+1:]
-		}
-	}
-	// Decode the Base64 image
-	imageData, err := base64.StdEncoding.DecodeString(requestBody.Base64Image)
-	if err != nil {
-		http.Error(w, `{"error": "Invalid base64 image"}`, http.StatusBadRequest)
-		return
-	}
-
-	// Perform OCR to extract text
-	googleCred := option.WithCredentialsFile(os.Getenv("GOOGLE_CRED"))
-	ocrText, err := getOCRText(imageData, googleCred)
-	if err != nil {
-		http.Error(w, `{"error": "Failed to perform OCR"}`, http.StatusInternalServerError)
-		return
-	}
-	formatedText := strings.ReplaceAll(ocrText, "\n", " ")
-	fmt.Println("OCR Text in Single Line:", formatedText)
-	// Process the extracted text with AI
-	aiResponse, err := ProcessAI(formatedText)
-	if err != nil {
-		http.Error(w, `{"error": "Failed to process AI"}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Respond with the AI response
-	responseBody := ResponseBody{AIResponse: aiResponse}
-	if err := json.NewEncoder(w).Encode(responseBody); err != nil {
-		http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
-	}
-	fmt.Println(aiResponse)
-}
-func Router(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	case "/upload":
-		PostImage(w, r)
-	default:
-		http.NotFound(w, r)
-	}
-}
-func init() {
-	functions.HTTP("Router", Router)
-	env := os.Getenv("ENVIRONMENT")
-	var envFile string
-	if env == "cloud" {
-		envFile = "Capp.env"
-	} else {
-		envFile = "app.env"
-	}
-
-	err := godotenv.Load(envFile)
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
-
-	// Initialize the database connection
-	err = initSQL()
-	if err != nil {
-		log.Fatalf("Failed to connect to MySQL: %v", err)
-	}
-	defer db.Close()
-
-}
-
-// func main() {
-// 	env := os.Getenv("ENVIRONMENT")
-// 	var envFile string
-// 	if env == "cloud" {
-// 		envFile = "Capp.env"
-// 	} else {
-// 		envFile = "app.env"
-// 	}
-
-// 	err := godotenv.Load(envFile)
-// 	if err != nil {
-// 		log.Fatalf("Error loading .env file")
-// 	}
-// 	err = initSQL()
-// 	if err != nil {
-// 		log.Fatalf("Failed to connect to MySQL: %v", err)
-// 	}
-// 	defer db.Close()
-
-// port := os.Getenv("LOCAL_SERVER_PORT")
-// if port == "" {
-// 	port = "5000"
-// }
-
-// if env == "cloud" {
-// 	// For Cloud Functions, use funcframework to start the server
-// 	if err := funcframework.Start(port); err != nil {
-// 		log.Fatalf("funcframework.Start: %v\n", err)
-// 	}
-// } else {
-// 	// For local development, use http.ListenAndServe
-// 	http.HandleFunc("/upload", PostImage)
-// 	log.Fatal(http.ListenAndServe(":"+port, nil))
-// }
