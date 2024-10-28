@@ -33,18 +33,16 @@ type ResponseBody struct {
 
 var db *sql.DB
 
-func Router(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	case "/upload":
-		PostImage(w, r)
-	default:
-		http.NotFound(w, r)
-	}
+func init() {
+	functions.HTTP("PostImage", PostImage)
 }
-
 func PostImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
+	err := InitSQL()
+	if err != nil {
+		log.Fatalf("Failed to connect to MySQL: %v", err)
+	}
+	defer db.Close()
 	// Parse the JSON request body
 	var requestBody RequestBody
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
@@ -66,8 +64,10 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 
 	// Perform OCR to extract text
 	googleCred := option.WithCredentialsFile(os.Getenv("GOOGLE_CRED"))
+	log.Println(googleCred)
 	ocrText, err := GetOCRText(imageData, googleCred)
 	if err != nil {
+		log.Printf("OCR error: %v", err)
 		http.Error(w, `{"error": "Failed to perform OCR"}`, http.StatusInternalServerError)
 		return
 	}
@@ -88,27 +88,6 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(aiResponse)
 }
 
-func init() {
-	functions.HTTP("Router", Router)
-	// env := os.Getenv("ENVIRONMENT")
-	// var envFile string
-	// if env == "cloud" {
-	// 	envFile = "Capp.env"
-	// } else {
-	// 	envFile = "app.env"
-	// }
-
-	// err := godotenv.Load(envFile)
-	// if err != nil {
-	// 	log.Fatalf("Error loading .env file")
-	// }
-	err := InitSQL()
-	if err != nil {
-		log.Fatalf("Failed to connect to MySQL: %v", err)
-	}
-	defer db.Close()
-
-}
 func ProcessChatgptAI(formatedText string, modelname string) (string, error) {
 	ChatgptKey := os.Getenv("CHATGPT_KEY")
 	promptMessage, err := GetPromptMessage()
@@ -309,7 +288,7 @@ func InitSQL() error {
 	host := os.Getenv("MY_SQL_HOST")
 	dbName := os.Getenv("MY_SQL_DB")
 	tcp := os.Getenv("MY_SQL_TCP")
-	log.Printf("user:%s , password:%s, host:%s, dbname:%s , tcp:%s", user, password, host, dbName, tcp)
+	log.Printf("%s:%s@%s(%s)/%s", user, password, tcp, host, dbName)
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s", user, password, tcp, host, dbName)
 	var err error
 	db, err = sql.Open("mysql", dsn)

@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/vision v1.2.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.0
 	github.com/go-sql-driver/mysql v1.8.1
+	github.com/joho/godotenv v1.5.1
 	google.golang.org/api v0.203.0
 )
 
