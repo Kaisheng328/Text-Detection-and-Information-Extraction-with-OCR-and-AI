@@ -3,8 +3,10 @@ module example.com/kaisheng
 go 1.22
 
 require (
+	cloud.google.com/go/storage v1.43.0
 	cloud.google.com/go/vision v1.2.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.0
+	github.com/Masterminds/squirrel v1.5.4
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/api v0.203.0
@@ -16,6 +18,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
 	cloud.google.com/go/functions v1.19.1 // indirect
+	cloud.google.com/go/iam v1.2.1 // indirect
 	cloud.google.com/go/longrunning v0.6.1 // indirect
 	cloud.google.com/go/vision/v2 v2.9.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -29,6 +32,8 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
+	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
 	go.opencensus.io v0.24.0 // indirect
