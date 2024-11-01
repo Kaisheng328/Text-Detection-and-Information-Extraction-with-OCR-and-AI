@@ -394,9 +394,9 @@ func generateRandomString(length int) string {
 	return string(digits)
 }
 
-func uploadToGCS(bucketName, objectName string, imageData []byte) (string, error) {
+func uploadToGCS(objectName string, imageData []byte) (string, error) {
 	ctx := context.Background()
-
+	bucketName := os.Getenv("BUCKET_NAME")
 	// Create a client
 	client, err := storage.NewClient(ctx)
 	if err != nil {
@@ -491,7 +491,6 @@ func insertImageRecord(imageData []byte) (string, error) {
 	imageID := fmt.Sprintf("%d.%s", imageTime, format)
 	width := img.Bounds().Dx()
 	height := img.Bounds().Dy()
-	bucketname := os.Getenv("BUCKET_NAME")
 
 	queryBuilder := sq.Insert("image").SetMap(map[string]interface{}{
 
@@ -526,7 +525,7 @@ func insertImageRecord(imageData []byte) (string, error) {
 	}
 	randomNumbers := generateRandomString(6)
 	objectname := "image/original/" + fmt.Sprintf("%v_%v_%v", Id, randomNumbers, imageID)
-	src, err := uploadToGCS(bucketname, objectname, imageData)
+	src, err := uploadToGCS(objectname, imageData)
 	if err != nil {
 		log.Printf("failed to upload: %v", err)
 	}
