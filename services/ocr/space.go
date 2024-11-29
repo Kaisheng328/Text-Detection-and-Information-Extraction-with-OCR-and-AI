@@ -10,6 +10,8 @@ import (
 	ocr "github.com/ranghetto/go_ocr_space"
 )
 
+//https://myapi.ocr.space/conversions post to check apikey count. more details visit https://ocr.space/ocrapi/myapi
+
 var currentKeyIndex int
 var apiKeys []string
 
@@ -47,7 +49,7 @@ func SpaceOCRText(base64image string) (string, error) {
 		config := ocr.InitConfig(spaceAPIKey, "eng", ocr.OCREngine2)
 		result, err := config.ParseFromBase64(base64image)
 		if err != nil {
-			if strings.Contains(err.Error(), "Quota exceeded") {
+			if strings.Contains(err.Error(), "Monthly conversion limit reached") {
 				log.Printf("Quota exceeded for API key %s: %v\n", spaceAPIKey, err)
 				continue
 			}
