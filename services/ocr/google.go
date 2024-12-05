@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 
 	vision "cloud.google.com/go/vision/apiv1"
 	"example.com/kaisheng/common/helper"
-	"google.golang.org/api/option"
 )
 
 func GoogleOCRText(base64image string) (string, error) {
@@ -20,8 +18,8 @@ func GoogleOCRText(base64image string) (string, error) {
 		return "", fmt.Errorf("failed to decode base64 image: %w", err)
 	}
 
-	googleCred := option.WithCredentialsFile(os.Getenv("GOOGLE_CRED"))
-	client, err := vision.NewImageAnnotatorClient(ctx, googleCred)
+	// googleCred := option.WithCredentialsFile(os.Getenv("GOOGLE_CRED"))
+	client, err := vision.NewImageAnnotatorClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("vision.NewImageAnnotatorClient: %v", err)
 	}
