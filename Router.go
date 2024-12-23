@@ -51,7 +51,10 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 
 	if requestBody.AIProvider == "" && requestBody.AIModel == "" {
 		responseBody := map[string]interface{}{
-			"ocrText": formatedText,
+			"ocrResponse": map[string]interface{}{
+				"text":     formatedText,
+				"provider": requestBody.OCRProvider,
+			},
 		}
 		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
 			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
@@ -62,7 +65,10 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 	if !providerExists {
 		log.Printf("Invalid AI provider: %s", requestBody.AIProvider)
 		responseBody := map[string]interface{}{
-			"ocrText": formatedText,
+			"ocrResponse": map[string]interface{}{
+				"text":     formatedText,
+				"provider": requestBody.OCRProvider,
+			},
 		}
 		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
 			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
@@ -76,7 +82,10 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 	aiResponse, err := ProcessAI(formatedText, requestBody.AIProvider, requestBody.AIModel)
 	if err != nil {
 		responseBody := map[string]interface{}{
-			"ocrText": formatedText,
+			"ocrResponse": map[string]interface{}{
+				"text":     formatedText,
+				"provider": requestBody.OCRProvider,
+			},
 		}
 		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
 			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
@@ -86,12 +95,20 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with the AI response
 	responseBody := map[string]interface{}{
-		"OcrRawText": formatedText,
+		"ocrResponse": map[string]interface{}{
+			"text":     formatedText,
+			"provider": requestBody.OCRProvider,
+		},
 	}
 	var aiResponseData map[string]interface{}
 	if err := json.Unmarshal([]byte(aiResponse), &aiResponseData); err != nil {
-		// Handle decoding error
-		http.Error(w, `{"error": "Failed to decode aiResponse"}`, http.StatusInternalServerError)
+		// Log the decoding error
+		log.Printf("Failed to decode aiResponse: %v\n", err)
+
+		// Respond with only the OCR response
+		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
+			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
+		}
 		return
 	}
 	responseBody["aiResponse"] = aiResponseData
@@ -133,14 +150,14 @@ func OCRVersion(Content string, provider string) (string, error) {
 		provider = enums.Default_provider
 	}
 	switch provider {
-	case "Google":
+	case "ocr-google":
 		result, err := ocr.GoogleOCRText(Content)
 		if err != nil {
 			log.Printf("Error in GoogleOCRText: %v", err)
 			return "", err
 		}
 		return result, nil
-	case "Space":
+	case "ocr-space":
 		result, err := ocr.SpaceOCRText(Content)
 		if err != nil {
 			log.Printf("Error in SpaceOCRText: %v", err)
