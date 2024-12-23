@@ -1,0 +1,33 @@
+ steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    args:
+      - functions
+      - deploy
+      - ocrIdentity
+      - '--runtime=go122'
+      - '--region=asia-southeast1'
+      - '--entry-point=ocrIdentity'
+      - '--trigger-http'
+      - '--memory=128Mi'
+      - '--timeout=60s'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'GCP_PROJECT_ID=$_GCP_PROJECT_ID'
+      - '--set-env-vars'
+      - 'OLLAMA_API=$_OLLAMA_API'
+      - '--set-env-vars'
+      - 'OLLAMA_ENDPOINT=$_OLLAMA_ENDPOINT'
+      - '--set-env-vars'
+      - 'OLLAMA_HOST=$_OLLAMA_HOST'
+      - '--set-env-vars'
+      - 'OLLAMA_KEY=$_OLLAMA_KEY'
+      - '--set-secrets'
+      - 'OPENAI_API_KEY=openai-api-key:latest'
+      - '--stage-bucket=gs://halogen-device-438608-v9.appspot.com'
+    entrypoint: gcloud
+timeout: 1200s
+options:
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
+ 
+ 
