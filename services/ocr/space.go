@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -17,6 +18,7 @@ type APIKey struct {
 	Key        string    `firestore:"key"`
 	UsageCount int       `firestore:"usage_count"`
 	CreatedAt  time.Time `firestore:"created_at"`
+	ExpiresAt  time.Time `firestore:"expires_at"`
 }
 
 // Get Firestore client
@@ -31,12 +33,12 @@ func getFirestoreClient(ctx context.Context) (*firestore.Client, error) {
 
 func getLeastUsedAPIKey(ctx context.Context, client *firestore.Client) (*APIKey, error) {
 	// Define the usage limit
-	const usageLimit = 300000
 
-	query := client.Collection("api_keys").
-		Where("usage_count", "<", usageLimit).
-		OrderBy("usage_count", firestore.Asc).
+	query := client.Collection("OcrSpaceKey").
+		Where("usage_count", ">", 0).
+		Where("expires_at", ">", time.Now()).
 		OrderBy("created_at", firestore.Asc).
+		OrderBy("usage_count", firestore.Asc).
 		Limit(1)
 
 	iter := query.Documents(ctx)
@@ -45,7 +47,7 @@ func getLeastUsedAPIKey(ctx context.Context, client *firestore.Client) (*APIKey,
 	doc, err := iter.Next()
 	if err != nil {
 		if err == iterator.Done {
-			return nil, fmt.Errorf("no available API keys with usage_count below %d", usageLimit)
+			return nil, fmt.Errorf("no available API keys with usage count > 0")
 		}
 		return nil, fmt.Errorf("failed to fetch API key: %v", err)
 	}
@@ -58,8 +60,8 @@ func getLeastUsedAPIKey(ctx context.Context, client *firestore.Client) (*APIKey,
 	return &apiKey, nil
 }
 
-func incrementUsageCount(ctx context.Context, client *firestore.Client, key string) error {
-	docRef := client.Collection("api_keys").Doc(key)
+func decrementUsageCount(ctx context.Context, client *firestore.Client, key string) error {
+	docRef := client.Collection("OcrSpaceKey").Doc(key)
 
 	err := client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
 		// Read the current usage count
@@ -75,7 +77,7 @@ func incrementUsageCount(ctx context.Context, client *firestore.Client, key stri
 		}
 
 		// Increment the usage count
-		newUsageCount := apiKey.UsageCount + 1
+		newUsageCount := apiKey.UsageCount - 1
 		return tx.Update(docRef, []firestore.Update{
 			{Path: "usage_count", Value: newUsageCount},
 		})
@@ -101,6 +103,10 @@ func SpaceOCRText(base64image string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	const prefix = "data:image/jpeg;base64,"
+	if !strings.HasPrefix(base64image, prefix) {
+		base64image = prefix + base64image
+	}
 
 	// Use the selected API key for OCR
 	config := ocr.InitConfig(apiKey.Key, "eng", ocr.OCREngine2)
@@ -110,8 +116,8 @@ func SpaceOCRText(base64image string) (string, error) {
 	}
 
 	// Increment usage count in Firestore
-	if err := incrementUsageCount(ctx, client, apiKey.Key); err != nil {
-		log.Printf("Failed to increment usage count for key %s: %v\n", apiKey.Key, err)
+	if err := decrementUsageCount(ctx, client, apiKey.Key); err != nil {
+		log.Printf("Failed to decrement usage count for key %s: %v\n", apiKey.Key, err)
 	}
 
 	return result.JustText(), nil

@@ -17,10 +17,10 @@ import (
 )
 
 type OCRInput struct {
-	Base64Image         string `json:"base64image"`
-	OCRProvider         string `json:"ocr_provider"`
-	AIProviderName      string `json:"ai_provider_name"`
-	AIProviderModelName string `json:"ai_provider_model_name"`
+	Content     string `json:"content"`
+	OCRProvider string `json:"ocr_provider"`
+	AIProvider  string `json:"ai_provider"`
+	AIModel     string `json:"ai_model"`
 }
 type ResponseBody struct {
 	AIResponse string `json:"aiResponse"`
@@ -42,16 +42,14 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	formatedText, err := OCRVersion(requestBody.Base64Image, requestBody.OCRProvider)
+	formatedText, err := OCRVersion(requestBody.Content, requestBody.OCRProvider)
 	if err != nil {
 		log.Printf("OCR error: %v", err)
 		http.Error(w, `{"error": "Failed to perform OCR"}`, http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Println("OCR Text in Single Line:", formatedText)
-
-	if requestBody.AIProviderName == "" && requestBody.AIProviderModelName == "" {
+	if requestBody.AIProvider == "" && requestBody.AIModel == "" {
 		responseBody := map[string]interface{}{
 			"ocrText": formatedText,
 		}
@@ -60,9 +58,9 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	models, providerExists := availableProviders[requestBody.AIProviderName]
+	models, providerExists := availableProviders[requestBody.AIProvider]
 	if !providerExists {
-		log.Printf("Invalid AI provider: %s", requestBody.AIProviderName)
+		log.Printf("Invalid AI provider: %s", requestBody.AIProvider)
 		responseBody := map[string]interface{}{
 			"ocrText": formatedText,
 		}
@@ -71,11 +69,11 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if requestBody.AIProviderModelName == "" {
-		requestBody.AIProviderModelName = models[0]
+	if requestBody.AIModel == "" {
+		requestBody.AIModel = models[0]
 	}
 	// Process the extracted text with AI
-	aiResponse, err := ProcessAI(formatedText, requestBody.AIProviderName, requestBody.AIProviderModelName)
+	aiResponse, err := ProcessAI(formatedText, requestBody.AIProvider, requestBody.AIModel)
 	if err != nil {
 		responseBody := map[string]interface{}{
 			"ocrText": formatedText,
@@ -88,12 +86,18 @@ func PostImage(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with the AI response
 	responseBody := map[string]interface{}{
-		"aiResponse": aiResponse,
+		"OcrRawText": formatedText,
 	}
+	var aiResponseData map[string]interface{}
+	if err := json.Unmarshal([]byte(aiResponse), &aiResponseData); err != nil {
+		// Handle decoding error
+		http.Error(w, `{"error": "Failed to decode aiResponse"}`, http.StatusInternalServerError)
+		return
+	}
+	responseBody["aiResponse"] = aiResponseData
 	if err := json.NewEncoder(w).Encode(responseBody); err != nil {
 		http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
 	}
-	fmt.Println(aiResponse)
 }
 
 func ProcessAI(formatedText string, providerName string, modelName string) (string, error) {
@@ -123,21 +127,21 @@ func ProcessAI(formatedText string, providerName string, modelName string) (stri
 	return aiResponse, nil
 }
 
-func OCRVersion(base64image string, provider string) (string, error) {
+func OCRVersion(Content string, provider string) (string, error) {
 
 	if provider == "" {
 		provider = enums.Default_provider
 	}
 	switch provider {
 	case "Google":
-		result, err := ocr.GoogleOCRText(base64image)
+		result, err := ocr.GoogleOCRText(Content)
 		if err != nil {
 			log.Printf("Error in GoogleOCRText: %v", err)
 			return "", err
 		}
 		return result, nil
 	case "Space":
-		result, err := ocr.SpaceOCRText(base64image)
+		result, err := ocr.SpaceOCRText(Content)
 		if err != nil {
 			log.Printf("Error in SpaceOCRText: %v", err)
 			return "", err
