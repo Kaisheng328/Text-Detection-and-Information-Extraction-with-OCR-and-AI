@@ -23,7 +23,7 @@ type APIKey struct {
 
 // Get Firestore client
 func getFirestoreClient(ctx context.Context) (*firestore.Client, error) {
-	projectID := os.Getenv("FIRESTORE_PROJECT_ID")
+	projectID := os.Getenv("GCP_PROJECT_ID")
 	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Firestore client: %v", err)

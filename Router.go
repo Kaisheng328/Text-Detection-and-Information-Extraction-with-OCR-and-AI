@@ -27,10 +27,10 @@ type ResponseBody struct {
 }
 
 func init() {
-	functions.HTTP("PostImage", PostImage)
+	functions.HTTP("ocrIdentity", ocrIdentity)
 }
 
-func PostImage(w http.ResponseWriter, r *http.Request) {
+func ocrIdentity(w http.ResponseWriter, r *http.Request) {
 	var requestBody OCRInput
 	availableProviders := map[string][]string{
 		"chatgpt": {"gpt-4o-mini", "gpt-3.5-turbo"},
