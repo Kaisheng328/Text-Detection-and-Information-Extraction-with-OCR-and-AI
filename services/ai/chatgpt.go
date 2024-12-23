@@ -13,7 +13,7 @@ import (
 
 func ProcessChatgptAI(formatedText string, modelname string) (string, error) {
 	var fullResponse string
-	ChatgptKey := os.Getenv("openai-api-key")
+	ChatgptKey := os.Getenv("OPENAI_API_KEY")
 	promptMessage := enums.Default_prompt_message
 	prompt := fmt.Sprintf("%s, %s", promptMessage, formatedText)
 
