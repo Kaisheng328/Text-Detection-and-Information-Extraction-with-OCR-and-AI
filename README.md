@@ -23,11 +23,8 @@ OCR AI Cloud Service is a cloud-based application designed to extract text from 
    ```bash
    git clone https://github.com/Kaisheng328/Text-Detection-and-Information-Extraction-with-OCR-and-AI.git
    cd Text-Detection-and-Information-Extraction-with-OCR-and-AI
-```
 
-## Additional Usage Examples
-
-### Sending a Request with Postman
+## Sending a Request with Postman
 
 1. Open Postman and create a new request.
 2. Set the request type to `POST` and enter the following URL: https://ocridentity-s5m47uwooa-as.a.run.app/ic
