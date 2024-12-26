@@ -33,7 +33,7 @@ OCR AI Cloud Service is a cloud-based application designed to extract text from 
 5. Add the following JSON payload in the request body:
 ```json
 {
-  "ocr_provider": "ocr-google",
+  "ocr_provider": "ocr-google/ocr-space",
   "ai_provider": "chatgpt",
   "ai_model": "",
   "content": "/9j/4AAQSkZJRgABAQEAYABgAAD/..."
