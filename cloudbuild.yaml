@@ -23,7 +23,6 @@
       - 'OLLAMA_KEY=$_OLLAMA_KEY'
       - '--set-secrets'
       - 'OPENAI_API_KEY=openai-api-key:latest'
-      - '--stage-bucket=gs://halogen-device-438608-v9.appspot.com'
     entrypoint: gcloud
 timeout: 1200s
 options:
