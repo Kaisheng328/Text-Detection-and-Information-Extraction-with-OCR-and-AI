@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load("../app.env")
+	err := godotenv.Load("./.env")
 	port := "8080"
 	if err != nil {
 		log.Fatalf("Error loading .env file")

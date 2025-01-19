@@ -6,14 +6,12 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
-	"log"
 	"net/http"
 
 	"example.com/kaisheng/common/enums"
 	"example.com/kaisheng/services/ai"
 	"example.com/kaisheng/services/ocr"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 type OCRInput struct {
@@ -44,77 +42,55 @@ func ocrIdentity(w http.ResponseWriter, r *http.Request) {
 
 	formatedText, err := OCRVersion(requestBody.Content, requestBody.OCRProvider)
 	if err != nil {
-		log.Printf("OCR error: %v", err)
+		fmt.Printf("OCR error: %v", err)
 		http.Error(w, `{"error": "Failed to perform OCR"}`, http.StatusInternalServerError)
 		return
 	}
 
-	if requestBody.AIProvider == "" && requestBody.AIModel == "" {
-		responseBody := map[string]interface{}{
-			"ocrResponse": map[string]interface{}{
-				"text":     formatedText,
-				"provider": requestBody.OCRProvider,
-			},
-		}
-		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
-			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
-		}
+	// Defualt responseBody
+	responseBody := map[string]interface{}{
+		"raw":       formatedText,
+		"provider":  requestBody.OCRProvider,
+		"result":    map[string]interface{}{},
+		"rawResult": "",
+	}
+
+	if requestBody.AIProvider == "" {
+		generateResponse(w, responseBody)
 		return
 	}
+
 	models, providerExists := availableProviders[requestBody.AIProvider]
 	if !providerExists {
-		log.Printf("Invalid AI provider: %s", requestBody.AIProvider)
-		responseBody := map[string]interface{}{
-			"ocrResponse": map[string]interface{}{
-				"text":     formatedText,
-				"provider": requestBody.OCRProvider,
-			},
-		}
-		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
-			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
-		}
+		fmt.Printf("Invalid AI provider: %s", requestBody.AIProvider)
+		generateResponse(w, responseBody)
 		return
 	}
+
 	if requestBody.AIModel == "" {
 		requestBody.AIModel = models[0]
 	}
+
 	// Process the extracted text with AI
 	aiResponse, err := ProcessAI(formatedText, requestBody.AIProvider, requestBody.AIModel)
 	if err != nil {
-		responseBody := map[string]interface{}{
-			"ocrResponse": map[string]interface{}{
-				"text":     formatedText,
-				"provider": requestBody.OCRProvider,
-			},
-		}
-		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
-			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
-		}
+		generateResponse(w, responseBody)
 		return
 	}
+	responseBody["rawResult"] = aiResponse
 
-	// Respond with the AI response
-	responseBody := map[string]interface{}{
-		"ocrResponse": map[string]interface{}{
-			"text":     formatedText,
-			"provider": requestBody.OCRProvider,
-		},
-	}
-	var aiResponseData map[string]interface{}
-	if err := json.Unmarshal([]byte(aiResponse), &aiResponseData); err != nil {
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(aiResponse), &result); err != nil {
 		// Log the decoding error
-		log.Printf("Failed to decode aiResponse: %v\n", err)
+		fmt.Printf("Failed to decode aiResponse: %v\n", err)
 
 		// Respond with only the OCR response
-		if err := json.NewEncoder(w).Encode(responseBody); err != nil {
-			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
-		}
+		generateResponse(w, responseBody)
 		return
 	}
-	responseBody["aiResponse"] = aiResponseData
-	if err := json.NewEncoder(w).Encode(responseBody); err != nil {
-		http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
-	}
+
+	responseBody["result"] = result
+	generateResponse(w, responseBody)
 }
 
 func ProcessAI(formatedText string, providerName string, modelName string) (string, error) {
@@ -124,47 +100,51 @@ func ProcessAI(formatedText string, providerName string, modelName string) (stri
 	case "chatgpt":
 		aiResponse, err = ai.ProcessChatgptAI(formatedText, modelName) // Call ChatGPT API function
 		if err != nil {
-			log.Printf("Error processing chatgpt AI: %v\n", err)
+			fmt.Printf("Error processing chatgpt AI: %v\n", err)
 			return "", fmt.Errorf("error processing chatgpt AI: %v", err)
 		}
 	case "gemma":
 		aiResponse, err = ai.ProcessGemmaAI(formatedText, modelName) // Call Gemma API function
 		if err != nil {
-			log.Printf("Error processing gemma AI: %v\n", err)
+			fmt.Printf("Error processing gemma AI: %v\n", err)
 			return "", fmt.Errorf("error processing Gemma AI: %v", err)
 		}
 	default:
-		log.Printf("Unknown provider: %s\n", providerName)
+		fmt.Printf("Unknown provider: %s\n", providerName)
 		aiResponse, err = ai.ProcessGemmaAI(formatedText, modelName) // Default to Gemma
 		if err != nil {
-			log.Printf("Error processing default AI: %v\n", err)
+			fmt.Printf("Error processing default AI: %v\n", err)
 			return "", fmt.Errorf("error processing default AI: %v", err)
 		}
 	}
 	return aiResponse, nil
 }
 
-func OCRVersion(Content string, provider string) (string, error) {
+func OCRVersion(content string, provider string) (string, error) {
 
 	if provider == "" {
 		provider = enums.Default_provider
 	}
 	switch provider {
-	case "ocr-google":
-		result, err := ocr.GoogleOCRText(Content)
+	case enums.GOOGLE_CLOUD_PLATFORM:
+		result, err := ocr.GoogleOCRText(content)
 		if err != nil {
-			log.Printf("Error in GoogleOCRText: %v", err)
-			return "", err
+			return "", fmt.Errorf("Error in GoogleOCRText: %v", err)
 		}
 		return result, nil
-	case "ocr-space":
-		result, err := ocr.SpaceOCRText(Content)
+	case enums.OCR_SPACE:
+		result, err := ocr.SpaceOCRText(content)
 		if err != nil {
-			log.Printf("Error in SpaceOCRText: %v", err)
-			return "", err
+			return "", fmt.Errorf("Error in SpaceOCRText: %v", err)
 		}
 		return result, nil
 	default:
 		return "", fmt.Errorf("unsupported OCR provider: %s", provider)
+	}
+}
+
+func generateResponse(w http.ResponseWriter, responseBody map[string]interface{}) {
+	if err := json.NewEncoder(w).Encode(responseBody); err != nil {
+		http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
 	}
 }

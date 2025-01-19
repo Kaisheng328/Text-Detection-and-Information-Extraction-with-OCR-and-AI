@@ -6,9 +6,9 @@ require (
 	cloud.google.com/go/firestore v1.17.0
 	cloud.google.com/go/vision v1.2.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.0
-	github.com/go-sql-driver/mysql v1.8.1
 	github.com/joho/godotenv v1.5.1
 	github.com/ranghetto/go_ocr_space v0.0.0-20231122132734-5aa15ffadeeb
+	google.golang.org/api v0.203.0
 )
 
 require (
@@ -19,7 +19,6 @@ require (
 	cloud.google.com/go/functions v1.19.1 // indirect
 	cloud.google.com/go/longrunning v0.6.1 // indirect
 	cloud.google.com/go/vision/v2 v2.9.1 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.15.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -48,7 +47,6 @@ require (
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
-	google.golang.org/api v0.203.0 // indirect
 	google.golang.org/genproto v0.0.0-20241015192408-796eee8c2d53 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241007155032-5fefd90f89a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect

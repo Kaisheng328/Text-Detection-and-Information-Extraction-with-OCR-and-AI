@@ -1,18 +1,21 @@
- steps:
+steps:
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     args:
       - functions
       - deploy
-      - ocrIdentity
+      - identity-ocr
       - '--runtime=go122'
-      - '--region=asia-southeast1'
+      - '--region=$_REGION'
       - '--entry-point=ocrIdentity'
+      - '--source=./functions/http/identity-ocr'
       - '--trigger-http'
+      - '--project=$PROJECT_ID'
+      - '--run-service-account=$_SERVICE_ACCOUNT'
+      - '--service-account=$_SERVICE_ACCOUNT'
       - '--memory=128Mi'
       - '--timeout=60s'
-      - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'GCP_PROJECT_ID=$_GCP_PROJECT_ID'
+      - 'GCP_PROJECT_ID=$PROJECT_ID'
       - '--set-env-vars'
       - 'OLLAMA_API=$_OLLAMA_API'
       - '--set-env-vars'
@@ -21,12 +24,13 @@
       - 'OLLAMA_HOST=$_OLLAMA_HOST'
       - '--set-env-vars'
       - 'OLLAMA_KEY=$_OLLAMA_KEY'
+      - '--set-env-vars'
+      - 'SPACE_ENDPOINT=$_SPACE_ENDPOINT'
       - '--set-secrets'
       - 'OPENAI_API_KEY=openai-api-key:latest'
+      - '--allow-unauthenticated'
     entrypoint: gcloud
 timeout: 1200s
 options:
+  logging: 'CLOUD_LOGGING_ONLY'
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
-
- 
- 

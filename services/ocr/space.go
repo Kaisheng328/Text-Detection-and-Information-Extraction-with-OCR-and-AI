@@ -9,20 +9,24 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	ocr "github.com/ranghetto/go_ocr_space"
+	"example.com/kaisheng/common/enums"
+	"example.com/kaisheng/common/helper"
 	"google.golang.org/api/iterator"
 )
 
 // timestamp
 type APIKey struct {
-	Key        string    `firestore:"key"`
-	UsageCount int       `firestore:"usage_count"`
-	CreatedAt  time.Time `firestore:"created_at"`
-	ExpiresAt  time.Time `firestore:"expires_at"`
+	ID                 string    `firestore:"-"`
+	Key                string    `firestore:"key"`
+	Balance            int       `firestore:"balance"`
+	Usage              int       `firestore:"usage"`
+	CreatedAt          time.Time `firestore:"createdAt"`
+	ExpiresAt          time.Time `firestore:"expiredAt"`
+	ParseImageEndpoint string    `firestore:"parseImageEndpoint"`
 }
 
 // Get Firestore client
-func getFirestoreClient(ctx context.Context) (*firestore.Client, error) {
+func GetFirestoreClient(ctx context.Context) (*firestore.Client, error) {
 	projectID := os.Getenv("GCP_PROJECT_ID")
 	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
@@ -34,21 +38,19 @@ func getFirestoreClient(ctx context.Context) (*firestore.Client, error) {
 func getLeastUsedAPIKey(ctx context.Context, client *firestore.Client) (*APIKey, error) {
 	// Define the usage limit
 
-	query := client.Collection("OcrSpaceKey").
-		Where("usage_count", ">", 0).
-		Where("expires_at", ">", time.Now()).
-		OrderBy("created_at", firestore.Asc).
-		OrderBy("usage_count", firestore.Asc).
+	query := client.Collection(enums.CollectionPath).
+		Where("balance", ">", 0).
+		Where("expiredAt", ">", time.Now()).
+		OrderBy("expiredAt", firestore.Asc).
 		Limit(1)
 
 	iter := query.Documents(ctx)
 	defer iter.Stop()
 
 	doc, err := iter.Next()
-	if err != nil {
-		if err == iterator.Done {
-			return nil, fmt.Errorf("no available API keys with usage count > 0")
-		}
+	if err == iterator.Done {
+		return nil, fmt.Errorf("no available API keys with usage count > 0")
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to fetch API key: %v", err)
 	}
 
@@ -56,35 +58,14 @@ func getLeastUsedAPIKey(ctx context.Context, client *firestore.Client) (*APIKey,
 	if err := doc.DataTo(&apiKey); err != nil {
 		return nil, fmt.Errorf("failed to parse API key data: %v", err)
 	}
-
+	apiKey.ID = doc.Ref.ID
 	return &apiKey, nil
 }
 
 func decrementUsageCount(ctx context.Context, client *firestore.Client, key string) error {
-	docRef := client.Collection("OcrSpaceKey").Doc(key)
-
-	err := client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
-		// Read the current usage count
-		docSnap, err := tx.Get(docRef)
-		if err != nil {
-			return fmt.Errorf("failed to fetch document for key %s: %v", key, err)
-		}
-
-		// Ensure the usage_count field exists
-		var apiKey APIKey
-		if err := docSnap.DataTo(&apiKey); err != nil {
-			return fmt.Errorf("failed to parse API key data: %v", err)
-		}
-
-		// Increment the usage count
-		newUsageCount := apiKey.UsageCount - 1
-		return tx.Update(docRef, []firestore.Update{
-			{Path: "usage_count", Value: newUsageCount},
-		})
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to increment usage count in transaction: %v", err)
+	docRef := client.Collection(enums.CollectionPath).Doc(key)
+	if _, err := docRef.Update(ctx, []firestore.Update{{Path: "balance", Value: firestore.Increment(-1)}, {Path: "usage", Value: firestore.Increment(1)}}); err != nil {
+		return fmt.Errorf("failed to decrement balance in transaction: %v", err)
 	}
 	return nil
 }
@@ -92,32 +73,36 @@ func decrementUsageCount(ctx context.Context, client *firestore.Client, key stri
 // Perform OCR using the least used API key
 func SpaceOCRText(base64image string) (string, error) {
 	ctx := context.Background()
-	client, err := getFirestoreClient(ctx)
+	client, err := GetFirestoreClient(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer client.Close()
+	if err != nil {
+		log.Fatalf("Failed to fetch parseImageEndpoint from Firestore: %v", err)
+	}
 
 	// Fetch the least used API key
 	apiKey, err := getLeastUsedAPIKey(ctx, client)
 	if err != nil {
 		return "", err
 	}
+
 	const prefix = "data:image/jpeg;base64,"
 	if !strings.HasPrefix(base64image, prefix) {
 		base64image = prefix + base64image
 	}
 
 	// Use the selected API key for OCR
-	config := ocr.InitConfig(apiKey.Key, "eng", ocr.OCREngine2)
+	config := helper.InitConfig(apiKey.Key, apiKey.ParseImageEndpoint, "eng", helper.OCREngine2)
 	result, err := config.ParseFromBase64(base64image)
 	if err != nil {
 		return "", err
 	}
 
 	// Increment usage count in Firestore
-	if err := decrementUsageCount(ctx, client, apiKey.Key); err != nil {
-		log.Printf("Failed to decrement usage count for key %s: %v\n", apiKey.Key, err)
+	if err := decrementUsageCount(ctx, client, apiKey.ID); err != nil {
+		log.Printf("Failed to decrement usage count for key %s: %v\n", apiKey.ID, err)
 	}
 
 	return result.JustText(), nil

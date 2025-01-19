@@ -18,8 +18,7 @@ func ProcessGemmaAI(formatedText string, modelname string) (string, error) {
 	endpoint := os.Getenv("OLLAMA_ENDPOINT")
 	OllamaKey := os.Getenv("OLLAMA_KEY")
 	ollamaURL := fmt.Sprintf("http://%s/%s/%s", host, api, endpoint)
-	promptMessage := enums.Default_prompt_message
-	prompt := fmt.Sprintf("%s, %s", promptMessage, formatedText)
+	prompt := fmt.Sprintf("%s, %s", enums.Default_prompt_message, formatedText)
 	// Create the request body (adjust based on Ollama's API requirements)
 	requestBody := map[string]interface{}{
 		"model": modelname,
@@ -54,7 +53,6 @@ func ProcessGemmaAI(formatedText string, modelname string) (string, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return " ", fmt.Errorf("error sending request: %v", err)
-
 	}
 	defer resp.Body.Close()
 

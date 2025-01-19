@@ -14,8 +14,7 @@ import (
 func ProcessChatgptAI(formatedText string, modelname string) (string, error) {
 	var fullResponse string
 	ChatgptKey := os.Getenv("OPENAI_API_KEY")
-	promptMessage := enums.Default_prompt_message
-	prompt := fmt.Sprintf("%s, %s", promptMessage, formatedText)
+	prompt := fmt.Sprintf("%s, %s", enums.Default_prompt_message, formatedText)
 
 	// Create the request body (adjust based on Ollama's API requirements)
 	requestBody := map[string]interface{}{
