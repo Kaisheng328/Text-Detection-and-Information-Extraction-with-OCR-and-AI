@@ -7,7 +7,6 @@ steps:
       - '--runtime=go122'
       - '--region=$_REGION'
       - '--entry-point=ocrIdentity'
-      - '--source=./functions/http/identity-ocr'
       - '--trigger-http'
       - '--project=$PROJECT_ID'
       - '--run-service-account=$_SERVICE_ACCOUNT'
