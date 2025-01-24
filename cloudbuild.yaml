@@ -5,7 +5,6 @@ steps:
       - deploy
       - identity-ocr
       - '--runtime=go122'
-      - '--region=$_REGION'
       - '--entry-point=ocrIdentity'
       - '--trigger-http'
       - '--memory=128Mi'
