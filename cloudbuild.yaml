@@ -4,7 +4,7 @@ steps:
       - functions
       - deploy
       - identity-ocr
-      - '--runtime=go122'
+      - '--runtime=go119'
       - '--no-gen2'
       - '--entry-point=ocrIdentity'
       - '--trigger-http'
