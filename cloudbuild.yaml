@@ -5,6 +5,7 @@ steps:
       - deploy
       - identity-ocr
       - '--runtime=go122'
+      - '--no-gen2'
       - '--entry-point=ocrIdentity'
       - '--trigger-http'
       - '--memory=128Mi'
